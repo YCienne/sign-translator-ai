@@ -1,12 +1,12 @@
 import React from 'react';
-import { bg, LT, button } from '../assets';
+import { bg, LT} from '../assets';
 import { Link } from 'react-router-dom';
 import Header from './Header';
-import Footer from './footer';
+import Footer from './Footer';
 
 const LandingPage = () => {
     return (
-        <div className="relative w-full h-screen flex flex-col lg:flex-row items-center justify-between text-white">
+        <div className="fixed w-full h-screen flex flex-col lg:flex-row items-center justify-between text-white">
             <Header />
 
             
@@ -16,20 +16,20 @@ const LandingPage = () => {
             />
 
             
-            <div className="relative z-10 flex flex-col lg:flex-row gap-10 w-full h-full px-6 md:px-12 lg:px-16 sm:mt-20">
+            <div className="relative z-10 flex flex-col lg:flex-row gap-10 w-full h-full px-6 md:px-12 lg:px-16 sm:gap-5 sm:top-20">
                 
                 
-                <div className="flex flex-col justify-center w-full lg:w-1/3 items-center lg:items-start py-10 lg:py-0 sm:mt-20">
-                    <img src={LT} alt="Logo" className="w-2/3 sm:w-1/2 lg:w-full h-auto mb-4" />
+                <div className="flex justify-center w-full lg:w-1/3 items-center lg:items-start py-36 lg:py-30 ">
+                    <img src={LT} alt="Logo" className="w-2/3 lg:w-full h-auto  md:mb-40" />
                 </div>
 
                 
-                <div className="flex items-center justify-center lg:justify-end w-full lg:w-1/2 mt-6 lg:mt-0">
+                <div className="flex items-center justify-center lg:justify-end w-full lg:w-1/2 mt-0 lg:mt-0">
                     <Link to="/translator" className="relative flex items-center justify-center w-2/3 sm:w-1/2 lg:w-1/3">
-                        <img src={button} className="w-full h-auto" alt="Chat Button" />
-                        <h1 className="absolute inset-0 flex items-center justify-center text-white text-lg md:text-xl font-extrabold">
-                            Let's chat
-                        </h1>
+                    <button className="absolute flex-items top-0 left-4 text-lg font-bold py-2 px-12 w-56 bg-gray-950 text-white rounded-full">
+                    Let's Chat
+                </button>
+                    
                     </Link>
                 </div>
 
