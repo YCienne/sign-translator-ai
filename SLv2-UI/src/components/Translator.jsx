@@ -12,149 +12,277 @@ const Translation = () => {
     const videoRef = useRef(null);
     const wsRef = useRef(null);
     const navigate = useNavigate();
+    const [setIsProcessing] = useState(false);
 
-        const languages = ["English", "Spanish", "French", "Korean", "Italian", "Russian", "German", "Japanese", "Arabic", "Chinese"];
+    const languages = ["English", "Spanish", "French", "Korean", "Italian", "Russian", "German", "Japanese", "Arabic", "Chinese"];
 
-        useEffect(() => {
-            return () => stopTranslation(); 
-        }, []);
+    useEffect(() => {
+        return () => stopTranslation(); 
+    }, []);
 
-        const startCamera = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                videoRef.current.srcObject = stream;
-                setCameraActive(true);
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoRef.current.srcObject = stream;
+            setCameraActive(true);
                 
-                startRealTimeTranslation();
-                captureInterval();
-                videoRef.current.onloadedmetadata = () => {
-                    console.log("Video metadata loaded");
+            startRealTimeTranslation();
+            captureInterval();
+            videoRef.current.onloadedmetadata = () => {
+                console.log("Video metadata loaded");
                     
-                };
-            } catch (error) {
-                alert("Camera permission is required");
-            }
-        };
+            };
+        } catch (error) {
+            alert("Camera permission is required");
+        }
+    };
         
 
-        const stopCamera = () => {
-            const stream = videoRef.current.srcObject;
-            const tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-            setCameraActive(false);
-            stopTranslation();
-        };
+    const stopCamera = () => {
+        const stream = videoRef.current.srcObject;
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+        setCameraActive(false);
+        stopTranslation();
+    };
 
-        const stopTranslation = () => {
+    const stopTranslation = () => {
+        if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+        }
+    };
+
+    const  speak = (text) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = selectedLanguage === "English" ? "en-US": getLanguageCode(selectedLanguage);
+        speechSynthesis.speak(utterance);
+    };
+
+    const getLanguageCode = (language) => {
+        const languageMap = {
+            "Spanish": "es-US",
+            "French": "fr-FR",
+            "Korean": "ko-KR",
+            "Italian": "it-IT",
+            "Russian": "ru-RU",
+            "German": "de-DE",
+            "Japanese": "ja-JP",
+            "Arabic": "ar-SA",
+            "Chinese": "zh-CN",
+        };
+        return languageMap[language] || "en-US";
+    };
+
+    const startRealTimeTranslation = () => {
+        wsRef.current = new WebSocket("ws://localhost:8000/ws/predict");
+            
+        wsRef.current.onopen = () => {
+            console.log("WebSocket connection established");
+        };
+            
+        wsRef.current.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log("Received data:", data);
+        
+                if (data.error) {
+                    console.error("Server error:", data.error);
+                } else if (data.length > 0) {
+                    const newTranslations = data.map((d) => d.label);
+                    setTranslations((prevTranslations) => [
+                        ...prevTranslations,
+                        ...newTranslations,
+                    ]);
+
+                    newTranslations.forEach((translation) => {
+                        speak(translation);
+                    });
+                }
+                else {
+                    console.warn("No detections received.");
+                }
+            } catch (error) {
+                console.error("Error processing message:", error);
+            }
+        };
+            
+        wsRef.current.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+            
+        wsRef.current.onclose = () => {
+            console.log("WebSocket connection closed");
+        };
+            
+            
+        return () => {
+            clearInterval(captureInterval);
+        
+                // Close WebSocket connection
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
             }
         };
+    }; 
 
-        const startRealTimeTranslation = () => {
-            wsRef.current = new WebSocket("ws://localhost:8000/ws/predict");
-            
-            wsRef.current.onopen = () => {
-                console.log("WebSocket connection established");
-            };
-            
-            wsRef.current.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    console.log("Received data:", data);
+    const captureFrame = (videoElement) => {
+        return new Promise((resolve, reject) => {
         
-                    if (data.error) {
-                        console.error("Server error:", data.error);
-                    } else if (data.length > 0) {
-                        setTranslations((prevTranslations) => [
-                            ...prevTranslations,
-                            ...data.map((d) => d.label),
-                        ]);
-                    }
-                    else {
-                        console.warn("No detections received.");
-                    }
-                } catch (error) {
-                    console.error("Error processing message:", error);
-                }
-            };
-            
-            wsRef.current.onerror = (error) => {
-                console.error("WebSocket error:", error);
-            };
-            
-            wsRef.current.onclose = () => {
-                console.log("WebSocket connection closed");
-            };
-             // Adjust interval for real-time translation
-            
-            return () => {
-                clearInterval(captureInterval);
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
         
-                // Close WebSocket connection
-                if (wsRef.current) {
-                    wsRef.current.close();
-                    wsRef.current = null;
+            if (!context) {
+                reject(new Error("Canvas context not available"));
+                return;
+            }
+        
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+        
+            console.log("Canvas dimensions:", canvas.width, canvas.height);
+        
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        
+                // Checking if the canvas has content
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            if (imageData.data.every((val) => val === 0)) {
+                reject(new Error("Canvas has no content (image not captured properly)"));
+                return;
+            }
+        
+                // Creating Blob from the canvas
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    console.log("Frame captured successfully");
+                    resolve(blob);  
+                } else {
+                    reject(new Error("Blob creation failed"));
                 }
-            };
-        }; 
+            }, "image/jpeg");
+        });
+    };
+        
+    let isCapturing = false;
 
-        const captureFrame = (videoElement) => {
-            return new Promise((resolve, reject) => {
-        
-                const canvas = document.createElement("canvas");
-                const context = canvas.getContext("2d");
-        
-                if (!context) {
-                    reject(new Error("Canvas context not available"));
-                    return;
-                }
-        
-                canvas.width = videoElement.videoWidth;
-                canvas.height = videoElement.videoHeight;
-        
-                console.log("Canvas dimensions:", canvas.width, canvas.height);
-        
-                context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-        
-                // Check if the canvas has content
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                if (imageData.data.every((val) => val === 0)) {
-                    reject(new Error("Canvas has no content (image not captured properly)"));
-                    return;
-                }
-        
-                // Create the Blob from the canvas
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        console.log("Frame captured successfully");
-                        resolve(blob);  
+    const captureInterval = setInterval(async () => {
+        if (videoRef.current && cameraActive && !isCapturing) {
+            isCapturing = true;
+    
+            try {
+                const frame = await captureFrame(videoRef.current);
+                console.log("Captured frame:", frame);
+    
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64data = reader.result.split(",")[1];
+                    if (wsRef.current.readyState === WebSocket.OPEN) {
+                        console.log("Sending frame to server:", base64data.slice(0, 50)); // Log first 50 characters only
+                                // Send full base64 string to WebSocket server
+                        wsRef.current.send(base64data);
                     } else {
-                        reject(new Error("Blob creation failed"));
+                        console.warn("WebSocket not ready, frame skipped.");
                     }
-                }, "image/jpeg");
-            });
-        };
-        
-        let isCapturing = false;
+                };
+                reader.readAsDataURL(frame);
+            } catch (error) {
+                console.error("Error capturing frame:", error);
+            } finally {
+                isCapturing = false;
+            }
+        }
+    }, 3000);
 
-        const captureInterval = setInterval(async () => {
-            if (videoRef.current && cameraActive && !isCapturing) {
+            
+
+        const handleLanguageChange = (e) => {
+            setSelectedLanguage(e.target.value);
+        };
+
+    const handleUpload = (e) => {
+        const file = e.target.files[0];
+        setUploadFile(file);
+        if (file.type.startsWith("video")) {
+            const videoURL =  URL.createObjectURL(file);
+            videoRef.current.src = videoURL;
+                    // videoRef.current.play();
+            startRealTimeTranslation();
+            processUploadedVideo(file);
+            
+                    
+                    
+                    // handleTranslation();
+        } else if (file.type.startsWith("image")) {
+            const imageUrl = URL.createObjectURL(file);
+            videoRef.current.src = imageUrl;
+        }
+    };
+// Function to capture a frame from the video element
+const captureFrameFromUpload = (videoElement) => {
+    return new Promise((resolve, reject) => {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+            reject(new Error("Canvas context not available"));
+            return;
+        }
+
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+
+        console.log("Canvas dimensions:", canvas.width, canvas.height);
+
+        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+        // Check if the canvas has content
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        if (imageData.data.every((val) => val === 0)) {
+            reject(new Error("Canvas has no content (image not captured properly)"));
+            return;
+        }
+
+        // Create the Blob from the canvas
+        canvas.toBlob((blob) => {
+            if (blob) {
+                console.log("Frame captured successfully");
+                resolve(blob);
+            } else {
+                reject(new Error("Blob creation failed"));
+            }
+        }, "image/jpeg");
+    });
+};
+
+// Function to process the uploaded video
+const processUploadedVideo = (uploadedVideoFile) => {
+    const videoElement = document.createElement("video");
+    videoElement.src = URL.createObjectURL(uploadedVideoFile);
+    videoElement.crossOrigin = "anonymous";
+
+    let isCapturing = false;
+    let captureInterval;
+
+    // When video metadata is loaded, start processing
+    videoElement.onloadedmetadata = () => {
+        console.log("Video metadata loaded. Duration:", videoElement.duration);
+
+        // Set an interval to capture frames
+        captureInterval = setInterval(async () => {
+            if (!isCapturing) {
                 isCapturing = true;
-    
+
                 try {
-                    const frame = await captureFrame(videoRef.current);
+                    const frame = await captureFrameFromUpload(videoElement);
                     console.log("Captured frame:", frame);
-    
+
                     const reader = new FileReader();
                     reader.onloadend = () => {
                         const base64data = reader.result.split(",")[1];
-                        if (wsRef.current.readyState === WebSocket.OPEN) {
-                            console.log("Sending frame to server:", base64data.slice(0, 50)); // Log first 50 characters only
-    
-                            // Send full base64 string to WebSocket server
+                        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                            console.log("Sending frame to server:", base64data.slice(0, 50)); 
                             wsRef.current.send(base64data);
                         } else {
                             console.warn("WebSocket not ready, frame skipped.");
@@ -167,49 +295,90 @@ const Translation = () => {
                     isCapturing = false;
                 }
             }
-        }, 5000);
 
             
+            videoElement.currentTime += 1 / 30; 
+            if (videoElement.currentTime >= videoElement.duration) {
+                console.log("Finished processing the video.");
+                clearInterval(captureInterval);
+            }
+        }, 300); 
+    };
 
-            const handleLanguageChange = (e) => {
-                setSelectedLanguage(e.target.value);
-            };
 
-            const handleUpload = (e) => {
-                const file = e.target.files[0];
-                setUploadFile(file);
-                if (file.type.startsWith("video")) {
-                    videoRef.current.src = URL.createObjectURL(file);
-                    videoRef.current.play();
-                    handleTranslation();
-                } else if (file.type.startsWith("image")) {
-                    const imageUrl = URL.createObjectURL(file);
-                    videoRef.current.src = imageUrl;
-                }
-            };
+    videoElement.onerror = (error) => {
+        console.error("Error loading video:", error);
+    };
+
+    
+    videoElement.play();
+};
+
+            
 
             const handleTranslation = async () => {
                 if (uploadFile) {
                     const formData = new FormData();
                     formData.append("file", uploadFile);
                     formData.append("language", selectedLanguage);
-
+                    
+                    try{
                     const response = await fetch("http://localhost:8000/predict", {
                         method: "POST",
                         body: formData
                     });
 
                     const data = await response.json();
-                    setTranslations(data.map(d => d.label));
+                    const labels = data.map(d => d.label);
+                    setTranslations(labels);
+
+                    labels.forEach(label => speak(label));
+                    } catch (error) {
+                    console.error("Translation error:", error);
+                    }
                 }
             };
 
             const clearFeed = () => {
                 setUploadFile(null);
                 setTranslations([]);
+                
                 if (cameraActive) {
                     startCamera();
                 }
+
+                if (videoRef.current) {
+                    // Clear video source and stop playback
+                    videoRef.current.pause();
+                    videoRef.current.src = ""; // Clear the video content
+                    videoRef.current.load(); // Reset the video element
+                }
+        
+                // Revoke the object URL to free up memory
+                if (videoFile) {
+                    URL.revokeObjectURL(videoFile);
+                    setVideoFile(null);
+                }
+
+                if (captureInterval) {
+                    clearInterval(captureInterval);
+                    captureInterval = null; // Optional: Reset the interval variable
+                }
+
+                const canvas = document.querySelector("canvas");
+                    if (canvas) {
+                        const context = canvas.getContext("2d");
+                        context.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+                }
+
+
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.close();  // Close the WebSocket connection if needed
+                    console.log("WebSocket connection closed.");
+                }
+                
+                window.location.reload();
+                console.log("Feed cleared.");
             };
 
             const goHome = () => {
@@ -229,11 +398,13 @@ const Translation = () => {
                             </select>
                         </div>
                         <p className="mt-10">Translations</p> 
-                        <div className="mt-5">
+                        <div className="flex flex-1 flex-col mt-5">
                             {/* {translations.length > 0 ? translations.slice(-1) : "No translations yet."} */}
-                            <ul>
+                            <ul className='flex flex-row gap-2'>
                                 {translations.length > 0 ? (
-                                    translations.map((translation, index) => <li key={index}>{translation}</li>)
+                                    translations
+                                    .slice(-5)
+                                    .map((translation, index) => <li key={index}>{translation}</li>)
                                 ) : (
                                         <p>No translations yet</p>
                                 )}
@@ -250,6 +421,7 @@ const Translation = () => {
                                     className="w-3/4 h-3/4 bg-gray-300"
                                     controls
                                 ></video>
+                                
                             ) : (
                                 <img
                                     src={URL.createObjectURL(uploadFile)}
@@ -262,7 +434,7 @@ const Translation = () => {
                                 ref={videoRef}
                                 autoPlay
                                 className="w-3/4 h-3/4 bg-gray-300"
-                            ></video>
+                            />
                         )}
 
                         <div className="absolute bottom-4 flex space-x-4">

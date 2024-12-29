@@ -16,6 +16,18 @@
   position: relative;
 }
 
+.translations-container {
+  display: flex;
+  flex-wrap: wrap; 
+  justify-content: flex-start; 
+}
+
+.translation-item { /* Optional: Add background color */ /* Optional: Add padding */
+  border-radius: 1px; /* Optional: Rounded corners */
+  font-size: 12px; /* Adjust text size */
+}
+
+
 
 .overlay h1 {
   font-size: 3rem;

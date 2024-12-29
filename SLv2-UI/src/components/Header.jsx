@@ -32,7 +32,7 @@ const Header = () => {
 
         </a>
         <nav className={` ${openNavigation ? 'flex' : 'hidden'} fixed top-[5rem] left-0 right-0 bottom-0 bg-gray-900 lg:static lg:flex lg:mx-auto lg:bg-transparent`}>
-                <div className="relative z-2 flex flex-col items-center justify-end m-auto  lg:flex-row lg:justify-end ">
+                <div className="relative z-2 flex flex-col items-center justify-end m-auto  lg:flex-row lg:justify-end gap-4 ">
                     {navigation.map((item) => (
                         <a key={item.id} href={item.url} onClick={handleClick} className={`block relative font-code text-2xl uppercase text-n-1 transition-colors right-0 left-3/4 ${item.onlyMobile ? "lg:hidden" : ""} md:py-8 lg:-mr-0.25 lg:text-xs lg:font-semibold`}>
                             {item.title}

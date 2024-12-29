@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import base64
 import pickle
+from transformers import pipeline
+import whisper
+
 
 app = FastAPI()
 
@@ -22,7 +25,6 @@ app.add_middleware(
 model = YOLO('runs/detect/train/weights/best.pt')
 print("Model loaded successfully")
 
-model_2 = pickle.load(open('./model.p', 'rb'))
 
 class DetectionResponse(BaseModel):
     label: str
@@ -33,6 +35,15 @@ class DetectionResponse(BaseModel):
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Sign Language Detection API!"}
+
+def translate_label(label, language):
+    translations = {
+        "Spanish": "Traducción en español",
+        "French": "Traduction en français",
+        "Korean": "한국어 번역",
+        
+    }
+    return translations.get(language, label)
 
 @app.post("/predict", response_model=list[DetectionResponse])
 async def predict(file: UploadFile = File(...), language: str = 'English'):
@@ -64,14 +75,7 @@ async def predict(file: UploadFile = File(...), language: str = 'English'):
     except Exception as e:
         return {"error": str(e)}
     
-def translate_label(label, language):
-    translations = {
-        "Spanish": "Traducción en español",
-        "French": "Traduction en français",
-        "Korean": "한국어 번역",
-        
-    }
-    return translations.get(language, label)
+
 
 @app.websocket("/ws/predict")
 async def websocket_predict(websocket: WebSocket):
@@ -80,13 +84,9 @@ async def websocket_predict(websocket: WebSocket):
         while True:
             try:
                 data = await websocket.receive_text()
-                # print(f"Received Base64 string length: {len(data)}")
-                # print(f"Base64 string preview: {data[:50]}...")
                 image_data = base64.b64decode(data)
-                print("Received and decoded image")  
-                # with open("frame.jpg", "wb") as f:
-                #     f.write(image_data)
-                # Image.open("frame.jpg").show()
+                print("Received and decoded image")
+                
                 try:
                     image = Image.open(io.BytesIO(image_data)).convert("RGB")
                     print("Image converted to PIL.Image")
@@ -94,33 +94,30 @@ async def websocket_predict(websocket: WebSocket):
                     print(f"Error converting image: {e}")
                     await websocket.send_json({"error": "Invalid image data"})
                     continue
-                results = model(image, conf = 0.25)
-                # print("Model inference results:", results)
                 
+                results = model(image, conf=0.15)
                 detections = []
-                for pred in results[0].boxes:
-                    print("Prediction box:", pred.xyxy[0], "Confidence:", pred.conf[0], "Class:", pred.cls[0])
-                    if len(results[0].boxes) == 0:
-                        print("No detections in this frame.")
-                        continue
-                    conf = pred.conf[0]
-                    cls = pred.cls[0]
-                    label = model.names[int(cls)]
-                    detection = {
-                        "label": f"{label}",  
-                        "confidence": float(conf),
-                        
-                    }
-                    detections.append(detection)
-                    
-                    return detections
                 
-                print("Sending detections:", detections)  
+                if len(results[0].boxes) == 0:
+                    print("No detections in this frame.")
+                else:
+                    for pred in results[0].boxes:
+                        conf = pred.conf[0]
+                        cls = pred.cls[0]
+                        label = model.names[int(cls)]
+                        detection = {
+                            "label": f"{label}",
+                            "confidence": float(conf),
+                        }
+                        detections.append(detection)
+                
+                print("Sending detections:", detections)
                 await websocket.send_json(detections)
             except Exception as e:
-                print(f"Error processing frame: {e}")  
+                print(f"Error processing frame: {e}")
                 await websocket.send_json({"error": str(e)})
     except Exception as e:
-        print(f"WebSocket error: {e}")  
+        print(f"WebSocket error: {e}")
     finally:
         await websocket.close()
+
