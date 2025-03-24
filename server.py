@@ -1,16 +1,13 @@
-from fastapi import FastAPI, UploadFile, File, Form, WebSocket
+from fastapi import FastAPI, UploadFile, File, Form, WebSocket, requests
 from pydantic import BaseModel
 from PIL import Image
 import io
-from ultralytics import YOLO
-import numpy as np
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import base64
-import pickle
-from transformers import pipeline
-import whisper
-
+import os
+# from ultralytics import YOLO
+import torch
 
 app = FastAPI()
 
@@ -21,10 +18,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import torch
 
-model = YOLO('runs/detect/train/weights/best.pt')
+model = torch.hub.load("ultralytics/yolov5", "custom", path="runs/detect/train/weights/best.pt")
+
+# model = YOLO('runs/detect/train/weights/best.pt')
 print("Model loaded successfully")
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 class DetectionResponse(BaseModel):
     label: str
@@ -36,17 +37,26 @@ class DetectionResponse(BaseModel):
 async def root():
     return {"message": "Welcome to the Sign Language Detection API!"}
 
-def translate_label(label, language):
-    translations = {
-        "Spanish": "Traducción en español",
-        "French": "Traduction en français",
-        "Korean": "한국어 번역",
-        
+def translate_label(label, language):  # sourcery skip: remove-unnecessary-else
+    if language == "en":
+        return label
+
+    url = f"https://translation.googleapis.com/language/translate/v2?key={GOOGLE_API_KEY}"
+    params = {
+        "q" : label,
+        "target": language,
+        "format": "text",
     }
-    return translations.get(language, label)
+    response = requests.post(url, json=params)
+    if response.status_code == 200:
+        return response.json()["data"]["translations"][0]["translatedText"]
+    else:
+        print(f"Translation failed with status code: {response.status_code}")
+        return label
+    
 
 @app.post("/predict", response_model=list[DetectionResponse])
-async def predict(file: UploadFile = File(...), language: str = 'English'):
+async def predict(file: UploadFile = File(...), language: str = 'en'):
     try:
         # Read and open the image
         image_bytes = await file.read()
