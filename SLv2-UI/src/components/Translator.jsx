@@ -12,7 +12,7 @@ const Translation = () => {
     const navigate = useNavigate();
     
 
-    // const languages = ["English", "Spanish", "French", "Korean", "Italian", "Russian", "German", "Japanese", "Arabic", "Chinese"];
+    
     const languages = [
         { text: "English", value: "en" },
         { text: "Spanish", value: "es" },
@@ -65,29 +65,36 @@ const Translation = () => {
         clearInterval(captureInterval);
     };
 
-    const  speak = (text) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = selectedLanguage === "English" ? "en-US": getLanguageCode(selectedLanguage);
-        speechSynthesis.speak(utterance);
+    let speaking = false;
+    const queue = [];
+
+    const speak = (text) => {
+    if (typeof text !== "string" || !text.trim()) return;
+
+    queue.push(text);
+    if (!speaking) playNext();
     };
 
-    const getLanguageCode = (language) => {
-        const languageMap = {
-            "Spanish": "es-US",
-            "French": "fr-FR",
-            "Korean": "ko-KR",
-            "Italian": "it-IT",
-            "Russian": "ru-RU",
-            "German": "de-DE",
-            "Japanese": "ja-JP",
-            "Arabic": "ar-SA",
-            "Chinese": "zh-CN",
-        };
-        return languageMap[language] || "en-US";
-    };
+    function playNext() {
+    if (queue.length === 0) {
+        speaking = false;
+        return;
+    }
+
+    speaking = true;
+    const text = queue.shift();
+    console.log("Speaking:", text);
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US"; 
+    utterance.onend = () => playNext();
+
+    speechSynthesis.speak(utterance);
+    }
+
 
     const startRealTimeTranslation = () => {
-        wsRef.current = new WebSocket("ws://localhost:8000/ws/predict");
+        wsRef.current = new WebSocket(`ws://localhost:8000/ws/predict?lang=${selectedLanguage}`);
             
         wsRef.current.onopen = () => {
             console.log("WebSocket connection established");
@@ -101,14 +108,16 @@ const Translation = () => {
                 if (data.error) {
                     console.error("Server error:", data.error);
                 } else if (data.length > 0) {
-                    const newTranslations = data.map((d) => d.label);
-                    setTranslations((prevTranslations) => [
-                        ...prevTranslations,
-                        ...newTranslations,
-                    ]);
+                    const newTranslations = data.map((d) => ({
+                        label: d.label,
+                        translation: d.translation ?? d.label,
+                    }));
+                    setTranslations((prev) => [...prev, ...newTranslations]);
+                    newTranslations.forEach((d) => speak(d.translation));
+                    
 
                     newTranslations.forEach((translation) => {
-                        speak(translation);
+                        speak(d.translation);
                     });
                 }
                 else {
@@ -209,6 +218,7 @@ const Translation = () => {
         const handleLanguageChange = (e) => {
             setSelectedLanguage(e.target.value);
         };
+
 
     const handleUpload = (e) => {
         const file = e.target.files[0];
@@ -388,11 +398,18 @@ const processUploadedVideo = (uploadedVideoFile) => {
                     <div className="bg-gray-900 p-4 w-1/4 min-w-[200px] flex flex-col items-start">
                         <div className="flex items-center">
                             <FiMenu className="text-xl mr-2" />
-                            <select onChange={handleLanguageChange} className="bg-gray-800 p-2 rounded">
+                            <select
+                                onChange={handleLanguageChange}
+                                value={selectedLanguage}
+                                className="bg-gray-800 p-2 rounded"
+                                >
                                 {languages.map((lang) => (
-                                    <option key={lang} value={lang}>{lang.text}</option>
+                                    <option key={lang.value} value={lang.value}>
+                                    {lang.text}
+                                    </option>
                                 ))}
                             </select>
+
                         </div>
                         <p className="mt-10">Translations</p> 
                         <div className="flex flex-1 flex-col mt-5">

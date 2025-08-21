@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+SLenv/*
+__pycache__/*
+.pytest_cache/*
+SLenv/Lib/site-packages/smmap/*
