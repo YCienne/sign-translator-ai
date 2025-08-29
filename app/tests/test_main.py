@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 import io
 import base64
-from server import app, DetectionResponse  # Import from server.py
+from server import app, DetectionResponse  
 
 client = TestClient(app)
 

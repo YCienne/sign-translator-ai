@@ -165,7 +165,7 @@ const Translation = () => {
         
             context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
         
-                // Checking if the canvas has content
+                // Checking canvas for content
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             if (imageData.data.every((val) => val === 0)) {
                 reject(new Error("Canvas has no content (image not captured properly)"));
@@ -213,12 +213,10 @@ const Translation = () => {
         }
     }, 3000);
 
-            
-
-        const handleLanguageChange = (e) => {
-            setSelectedLanguage(e.target.value);
-        };
-
+    //Language change handler
+    const handleLanguageChange = (e) => {
+        setSelectedLanguage(e.target.value);
+    }
 
     const handleUpload = (e) => {
         const file = e.target.files[0];
@@ -282,7 +280,7 @@ const processUploadedVideo = (uploadedVideoFile) => {
     videoElement.src = URL.createObjectURL(uploadedVideoFile);
     videoElement.crossOrigin = "anonymous";
 
-    let isCapturing = false;
+        let isCapturing = false;
 
     // When video metadata is loaded, start processing
     videoElement.onloadedmetadata = () => {

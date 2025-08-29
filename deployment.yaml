@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sign-language-api
+spec:
+  replicas: 2  # Two pods for load balancing
+  selector:
+    matchLabels:
+      app: sign-language-api
+  template:
+    metadata:
+      labels:
+        app: sign-language-api
+    spec:
+      containers:
+      - name: sign-language-api
+        image: YOUR_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com/sign-language-api:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "2"      # Adjust based on load
+            memory: "4Gi" # YOLO needs more RAM
