@@ -14,16 +14,16 @@ const Translation = () => {
 
     
     const languages = [
-        { text: "English", value: "en" },
-        { text: "Spanish", value: "es" },
-        { text: "French", value: "fr" },
-        { text: "Korean", value: "ko" },
-        { text: "Italian", value: "it" },
-        { text: "Russian", value: "ru" },  
-        { text: "German", value: "de" },
-        { text: "Japanese", value: "ja" },
-        { text: "Arabic", value: "ar" },
-        { text: "Chinese", value: "zh" },
+        { text: "English", code: "en" },
+        { text: "Spanish", code: "es" },
+        { text: "French", code: "fr" },
+        { text: "Korean", code: "ko" },
+        { text: "Italian", code: "it" },
+        { text: "Russian", code: "ru" },  
+        { text: "German", code: "de" },
+        { text: "Japanese", code: "ja" },
+        { text: "Arabic", code: "ar" },
+        { text: "Chinese", code: "zh" },
     ];
 
     useEffect(() => {
@@ -365,14 +365,13 @@ const processUploadedVideo = (uploadedVideoFile) => {
                 }
 
                 if (captureInterval) {
-                    clearInterval(captureInterval);
-                    captureInterval = null; 
+                    clearInterval(captureInterval); 
                 }
 
                 const canvas = document.querySelector("canvas");
                     if (canvas) {
                         const context = canvas.getContext("2d");
-                        context.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+                        context.clearRect(0, 0, canvas.width, canvas.height); 
                 }
 
 
@@ -402,7 +401,7 @@ const processUploadedVideo = (uploadedVideoFile) => {
                                 className="bg-gray-800 p-2 rounded"
                                 >
                                 {languages.map((lang) => (
-                                    <option key={lang.value} value={lang.value}>
+                                    <option key={lang.code} value={lang.code}>
                                     {lang.text}
                                     </option>
                                 ))}
