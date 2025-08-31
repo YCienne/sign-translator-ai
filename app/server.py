@@ -24,7 +24,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "runs", "detect", "train", "weights", "best.
 model = YOLO(MODEL_PATH)
 print("Model loaded successfully")
 
-PROJECT_ID = os.getenv("PROJECT_ID", " ")
+PROJECT_ID = os.getenv("PROJECT_ID", "sl-translator-452815")
 LOCATION = "global"
 
 client = translate.TranslationServiceClient()
