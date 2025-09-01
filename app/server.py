@@ -8,7 +8,7 @@ import base64
 import os
 import requests  
 from ultralytics import YOLO
-from google.cloud import translate
+from google.cloud import translate, storage
 
 app = FastAPI()
 
@@ -19,8 +19,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, "runs", "detect", "train", "weights", "best.pt")
+MODEL_PATH = "/tmp/best.pt"
+BUCKET_NAME = "sign-translator-models"
+BLOB_NAME = "best.pt"
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        client = storage.Client()
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(BLOB_NAME)
+        blob.download_to_filename(MODEL_PATH)
+        print(f"Downloaded model to {MODEL_PATH}")
+
+download_model()
 model = YOLO(MODEL_PATH)
 print("Model loaded successfully")
 
